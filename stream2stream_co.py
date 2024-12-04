@@ -3,6 +3,7 @@ import numpy as np
 from PIL import Image, ImageFont, ImageDraw, ImageOps
 import pygetwindow as gw
 import pyautogui
+import alphabets
 
 
 def capture_screen():
@@ -12,30 +13,37 @@ def capture_screen():
 
 def screen_to_ascii():
     CHAR_LIST = "@%#*+=-:. "
-    font = ImageFont.truetype("fonts/DejaVuSansMono-Bold.ttf", size=10)
+    CHAR_LIST = alphabets.GENERAL["complex"]
     screen_width, screen_height = capture_screen()
+    num_cols = 100
+    cell_width = screen_width / num_cols
+    cell_height = 1.7 * cell_width
+    font_size = int(cell_width)
+    font = ImageFont.truetype("fonts/DejaVuSansMono-Bold.ttf", size=font_size)
+    num_rows = int(screen_height / cell_height)
+
     fourcc = cv2.VideoWriter_fourcc(*"XVID")
     fps = 20
     out = cv2.VideoWriter(
         "screen_output.mp4", fourcc, fps, (screen_width, screen_height)
     )
+
     try:
         while True:
             screenshot = pyautogui.screenshot()
             frame = np.array(screenshot)
-            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-            height, width, _ = frame.shape
-            cell_width = width / 100
-            cell_height = 2 * cell_width
-            num_rows = int(height / cell_height)
-            num_cols = int(width / cell_width)
-            out_image = Image.new("RGB", (width, height), (255, 255, 255))
+            out_image = Image.new("RGB", (screen_width, screen_height), (255, 255, 255))
             draw = ImageDraw.Draw(out_image)
+
             for i in range(num_rows):
                 for j in range(num_cols):
                     partial_image = frame[
-                        int(i * cell_height) : min(int((i + 1) * cell_height), height),
-                        int(j * cell_width) : min(int((j + 1) * cell_width), width),
+                        int(i * cell_height) : min(
+                            int((i + 1) * cell_height), screen_height
+                        ),
+                        int(j * cell_width) : min(
+                            int((j + 1) * cell_width), screen_width
+                        ),
                         :,
                     ]
                     partial_avg_color = np.sum(
@@ -51,11 +59,12 @@ def screen_to_ascii():
                         )
                     ]
                     draw.text(
-                        (j * 10, i * 10),
+                        (j * int(cell_width), i * int(cell_height)),
                         char,
                         fill=partial_avg_color,
                         font=font,
                     )
+
             out_image = np.array(out_image)
             out.write(out_image)
             cv2.imshow("ASCII Stream", out_image)
