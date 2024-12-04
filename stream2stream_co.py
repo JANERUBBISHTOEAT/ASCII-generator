@@ -40,15 +40,10 @@ def screen_to_ascii(
     prev_time = time.time()
     try:
         while True:
-            t = time.time()
             screenshot = pyautogui.screenshot()
-            print("screenshot", time.time() - t)
-            t = time.time()
             frame = np.array(screenshot)
             frame = cv2.resize(frame, (screen_width, screen_height))
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-            print("np cv", time.time() - t)
-            t = time.time()
 
             out_image = Image.new(
                 "RGB",
@@ -56,9 +51,6 @@ def screen_to_ascii(
                 (255, 255, 255),
             )
             draw = ImageDraw.Draw(out_image)
-
-            print("new draw", time.time() - t)
-            t = time.time()
 
             for i in range(num_rows):
                 for j in range(num_cols):
@@ -93,9 +85,6 @@ def screen_to_ascii(
                         font=font,
                     )
 
-            print("main", time.time() - t)
-            t = time.time()
-
             if show_fps:
                 current_time = time.time()
                 time_diff = current_time - prev_time
@@ -111,10 +100,6 @@ def screen_to_ascii(
             cv2.imshow("ASCII Stream", out_image)
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
-
-            print("rest", time.time() - t)
-            t = time.time()
-
     finally:
         out.release()
         cv2.destroyAllWindows()
