@@ -1,3 +1,5 @@
+import queue
+import threading
 import time
 
 import cv2
@@ -9,15 +11,28 @@ from PIL import Image, ImageDraw, ImageFont
 import alphabets
 
 
-def capture_screen():
+def get_screen_size():
     screen_width, screen_height = pyautogui.size()
     return screen_width, screen_height
 
 
 def capture_screen_mss(monitor):
     with mss.mss() as sct:
+        t = time.time()
         screenshot = sct.grab(monitor)
+        print("screenshot", time.time() - t)
+        t = time.time()
         return np.array(screenshot)
+
+
+alive = True
+
+
+def capture_screen(monitor, q):
+    global alive
+    while alive:
+        frame = capture_screen_mss(monitor)
+        q.put(frame)
 
 
 def screen_to_ascii(
@@ -26,8 +41,7 @@ def screen_to_ascii(
     fps=30,
     show_fps=True,
 ):
-
-    screen_width, screen_height = capture_screen()
+    screen_width, screen_height = get_screen_size()
     num_cols = 100
     cell_width = screen_width / num_cols
     cell_height = 1.7 * cell_width
@@ -46,86 +60,133 @@ def screen_to_ascii(
     screen_width = int(screen_width * shrink)
     screen_height = int(screen_height * shrink)
 
-    prev_time = time.time()
-    try:
-        while True:
-            t = time.time()
-            frame = capture_screen_mss(monitor)
-            print("screenshot", time.time() - t)
-            t = time.time()
-            frame = cv2.resize(frame, (screen_width, screen_height))
-            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-            print("np cv", time.time() - t)
-            t = time.time()
+    q1 = queue.Queue(maxsize=1)
+    q2 = queue.Queue(maxsize=1)
 
-            out_image = Image.new(
-                "RGB",
+    threads = [
+        threading.Thread(target=capture_screen, args=(monitor, q1)),
+        threading.Thread(
+            target=process_frame,
+            args=(
+                CHAR_LIST,
                 (screen_width, screen_height),
-                (255, 255, 255),
-            )
-            draw = ImageDraw.Draw(out_image)
+                num_cols,
+                cell_width,
+                cell_height,
+                font,
+                num_rows,
+                show_fps,
+                q1,
+                q2,
+            ),
+        ),
+        threading.Thread(
+            target=display_frame,
+            args=(out, q2),
+        ),
+    ]
 
-            print("new draw", time.time() - t)
-            t = time.time()
+    for thread in threads:
+        thread.start()
 
-            for i in range(num_rows):
-                for j in range(num_cols):
-                    partial_image = frame[
-                        int(i * cell_height) : min(
-                            int((i + 1) * cell_height), screen_height
-                        ),
-                        int(j * cell_width) : min(
-                            int((j + 1) * cell_width), screen_width
-                        ),
-                        :,
-                    ]
-                    partial_avg_color = np.sum(
-                        np.sum(partial_image, axis=0), axis=0
-                    ) / (cell_height * cell_width)
-                    partial_avg_color = tuple(
-                        partial_avg_color.astype(np.int32).tolist()
+    for thread in threads:
+        thread.join()
+
+    out.release()
+    cv2.destroyAllWindows()
+
+
+def process_frame(
+    CHAR_LIST,
+    screen_size,
+    num_cols,
+    cell_width,
+    cell_height,
+    font,
+    num_rows,
+    show_fps,
+    q1,
+    q2,
+):
+    global alive
+    prev_time = time.time()
+    while alive:
+        frame = q1.get()
+        t = time.time()
+        frame = cv2.resize(frame, screen_size)
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        print("np cv", time.time() - t)
+        t = time.time()
+
+        screen_width, screen_height = screen_size
+
+        out_image = Image.new(
+            "RGB",
+            (screen_width, screen_height),
+            (255, 255, 255),
+        )
+        draw = ImageDraw.Draw(out_image)
+        print("new draw", time.time() - t)
+        t = time.time()
+
+        for i in range(num_rows):
+            for j in range(num_cols):
+                partial_image = frame[
+                    int(i * cell_height) : min(
+                        int((i + 1) * cell_height), screen_height
+                    ),
+                    int(j * cell_width) : min(int((j + 1) * cell_width), screen_width),
+                    :,
+                ]
+                partial_avg_color = np.sum(np.sum(partial_image, axis=0), axis=0) / (
+                    cell_height * cell_width
+                )
+                partial_avg_color = tuple(partial_avg_color.astype(np.int32).tolist())
+                char = CHAR_LIST[
+                    min(
+                        int(np.mean(partial_image) * len(CHAR_LIST) / 255),
+                        len(CHAR_LIST) - 1,
                     )
-                    char = CHAR_LIST[
-                        min(
-                            int(np.mean(partial_image) * len(CHAR_LIST) / 255),
-                            len(CHAR_LIST) - 1,
-                        )
-                    ]
-                    draw.text(
-                        (
-                            j * cell_width,
-                            i * cell_height,
-                        ),
-                        char,
-                        fill=partial_avg_color,
-                        font=font,
-                    )
+                ]
+                draw.text(
+                    (
+                        j * cell_width,
+                        i * cell_height,
+                    ),
+                    char,
+                    fill=partial_avg_color,
+                    font=font,
+                )
+        print("main", time.time() - t)
+        t = time.time()
 
-            print("main", time.time() - t)
-            t = time.time()
+        if show_fps:
+            current_time = time.time()
+            time_diff = current_time - prev_time
+            if time_diff > 0:
+                fps = 1 / time_diff
+            else:
+                fps = float("inf")
+            prev_time = current_time
+            draw.text((10, 10), f"FPS: {fps:.2f}", fill=(0, 0, 0), font=font)
 
-            if show_fps:
-                current_time = time.time()
-                time_diff = current_time - prev_time
-                if time_diff > 0:
-                    fps = 1 / time_diff
-                else:
-                    fps = float("inf")
-                prev_time = current_time
-                draw.text((10, 10), f"FPS: {fps:.2f}", fill=(0, 0, 0), font=font)
+        q2.put(out_image)
 
-            out_image = np.array(out_image)
-            out.write(out_image)
-            cv2.imshow("ASCII Stream", out_image)
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
 
-            print("rest", time.time() - t)
-            t = time.time()
+def display_frame(out, q2):
+    global alive
+    while alive:
+        t = time.time()
+        out_image = q2.get()
+        out_image = np.array(out_image)
+        out.write(out_image)
+        cv2.imshow("ASCII Stream", out_image)
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            alive = False
+            break
 
-    finally:
-        out.release()
-        cv2.destroyAllWindows()
+        print("display", time.time() - t)
+        t = time.time()
 
 
 if __name__ == "__main__":
