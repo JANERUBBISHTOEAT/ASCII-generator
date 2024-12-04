@@ -22,6 +22,8 @@ def screen_to_ascii():
     font = ImageFont.truetype("fonts/DejaVuSansMono-Bold.ttf", size=font_size)
     num_rows = int(screen_height / cell_height)
 
+    shrink = 0.5
+
     fourcc = cv2.VideoWriter_fourcc(*"XVID")
     fps = 20
     out = cv2.VideoWriter(
@@ -32,7 +34,11 @@ def screen_to_ascii():
         while True:
             screenshot = pyautogui.screenshot()
             frame = np.array(screenshot)
-            out_image = Image.new("RGB", (screen_width, screen_height), (255, 255, 255))
+            out_image = Image.new(
+                "RGB",
+                (int(screen_width * shrink), int(screen_height * shrink)),
+                (255, 255, 255),
+            )
             draw = ImageDraw.Draw(out_image)
 
             for i in range(num_rows):
@@ -59,7 +65,7 @@ def screen_to_ascii():
                         )
                     ]
                     draw.text(
-                        (j * int(cell_width), i * int(cell_height)),
+                        (j * int(cell_width * shrink), i * int(cell_height * shrink)),
                         char,
                         fill=partial_avg_color,
                         font=font,
