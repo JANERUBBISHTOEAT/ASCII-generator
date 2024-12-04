@@ -23,6 +23,7 @@ def screen_to_ascii():
         while True:
             screenshot = pyautogui.screenshot()
             frame = np.array(screenshot)
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
             height, width, _ = frame.shape
             cell_width = width / 100
             cell_height = 2 * cell_width
