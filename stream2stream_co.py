@@ -27,7 +27,10 @@ def capture_screen(monitor, q):
         while alive:
             t = time.time() if DEBUG else None
             screenshot = sct.grab(monitor)
-            q.put(np.array(screenshot), timeout=1)
+            try:
+                q.put(np.array(screenshot), timeout=1)
+            except queue.Full:
+                pass
             print("screenshot", time.time() - t) if DEBUG else None
             t = time.time() if DEBUG else None
 
