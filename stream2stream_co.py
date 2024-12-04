@@ -4,6 +4,7 @@ from PIL import Image, ImageFont, ImageDraw, ImageOps
 import pygetwindow as gw
 import pyautogui
 import alphabets
+import time
 
 
 def capture_screen():
@@ -11,28 +12,37 @@ def capture_screen():
     return screen_width, screen_height
 
 
-def screen_to_ascii():
-    CHAR_LIST = "@%#*+=-:. "
-    CHAR_LIST = alphabets.GENERAL["complex"]
+def screen_to_ascii(
+    CHAR_LIST=alphabets.GENERAL["complex"],
+    shrink=0.5,
+    fps=30,
+    show_fps=True,
+):
 
-    shrink = 0.5
     screen_width, screen_height = capture_screen()
     num_cols = 100
     cell_width = screen_width / num_cols
     cell_height = 1.7 * cell_width
     font_size = int(min(cell_width, cell_height))
-    # font_size = int(cell_height * shrink)
     font = ImageFont.truetype("fonts/DejaVuSansMono-Bold.ttf", size=font_size)
     num_rows = int(screen_height / cell_height)
 
     fourcc = cv2.VideoWriter_fourcc(*"XVID")
-    fps = 30
     out = cv2.VideoWriter(
         "screen_output.mp4", fourcc, fps, (screen_width, screen_height)
     )
 
+    prev_time = time.time()
     try:
         while True:
+            current_time = time.time()
+            time_diff = current_time - prev_time
+            if time_diff > 0:
+                fps = 1 / time_diff
+            else:
+                fps = float("inf")
+            prev_time = current_time
+
             screenshot = pyautogui.screenshot()
             frame = np.array(screenshot)
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
@@ -77,6 +87,8 @@ def screen_to_ascii():
                         font=font,
                     )
 
+            if show_fps:
+                draw.text((10, 10), f"FPS: {fps:.2f}", fill=(0, 0, 0), font=font)
             out_image = np.array(out_image)
             out.write(out_image)
             cv2.imshow("ASCII Stream", out_image)
