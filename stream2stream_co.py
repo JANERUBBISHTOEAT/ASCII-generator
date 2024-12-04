@@ -1,15 +1,23 @@
-import cv2
-import numpy as np
-from PIL import Image, ImageFont, ImageDraw, ImageOps
-import pygetwindow as gw
-import pyautogui
-import alphabets
 import time
+
+import cv2
+import mss
+import numpy as np
+import pyautogui
+from PIL import Image, ImageDraw, ImageFont
+
+import alphabets
 
 
 def capture_screen():
     screen_width, screen_height = pyautogui.size()
     return screen_width, screen_height
+
+
+def capture_screen_mss(monitor):
+    with mss.mss() as sct:
+        screenshot = sct.grab(monitor)
+        return np.array(screenshot)
 
 
 def screen_to_ascii(
@@ -32,6 +40,7 @@ def screen_to_ascii(
         "screen_output.mp4", fourcc, fps, (screen_width, screen_height)
     )
 
+    monitor = {"top": 0, "left": 0, "width": screen_width, "height": screen_height}
     cell_width = int(cell_width * shrink)
     cell_height = int(cell_height * shrink)
     screen_width = int(screen_width * shrink)
@@ -41,10 +50,9 @@ def screen_to_ascii(
     try:
         while True:
             t = time.time()
-            screenshot = pyautogui.screenshot()
+            frame = capture_screen_mss(monitor)
             print("screenshot", time.time() - t)
             t = time.time()
-            frame = np.array(screenshot)
             frame = cv2.resize(frame, (screen_width, screen_height))
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
             print("np cv", time.time() - t)
