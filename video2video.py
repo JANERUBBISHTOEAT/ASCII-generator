@@ -48,10 +48,10 @@ def get_args():
 
 def main(opt):
     if opt.mode == "simple":
-        CHAR_LIST = "@%#*+=-:. "
+        CHAR_LIST = r"@%#*+=-:. "
     else:
         CHAR_LIST = (
-            "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. "
+            r"$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. "
         )
     if opt.background == "white":
         bg_code = 255
@@ -81,7 +81,9 @@ def main(opt):
             cell_height = 12
             num_cols = int(width / cell_width)
             num_rows = int(height / cell_height)
-        char_width, char_height = font.getsize("A")
+        bbox = font.getbbox("A")
+        char_width = bbox[2] - bbox[0]
+        char_height = bbox[3] - bbox[1]
         out_width = char_width * num_cols
         out_height = 2 * char_height * num_rows
         out_image = Image.new("L", (out_width, out_height), bg_code)
