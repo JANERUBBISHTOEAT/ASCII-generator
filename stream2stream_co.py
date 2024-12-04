@@ -33,7 +33,7 @@ def capture_screen(monitor, q):
 def screen_to_ascii(
     CHAR_LIST=alphabets.GENERAL["complex"],
     shrink=0.5,
-    fps=30,
+    fps=20,
     show_fps=True,
 ):
     screen_width, screen_height = get_screen_size()
