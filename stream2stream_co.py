@@ -14,18 +14,19 @@ def capture_screen():
 def screen_to_ascii():
     CHAR_LIST = "@%#*+=-:. "
     CHAR_LIST = alphabets.GENERAL["complex"]
+
+    shrink = 0.5
     screen_width, screen_height = capture_screen()
     num_cols = 100
     cell_width = screen_width / num_cols
     cell_height = 1.7 * cell_width
-    font_size = int(cell_width)
+    font_size = int(min(cell_width, cell_height))
+    # font_size = int(cell_height * shrink)
     font = ImageFont.truetype("fonts/DejaVuSansMono-Bold.ttf", size=font_size)
     num_rows = int(screen_height / cell_height)
 
-    shrink = 0.5
-
     fourcc = cv2.VideoWriter_fourcc(*"XVID")
-    fps = 20
+    fps = 30
     out = cv2.VideoWriter(
         "screen_output.mp4", fourcc, fps, (screen_width, screen_height)
     )
@@ -34,6 +35,8 @@ def screen_to_ascii():
         while True:
             screenshot = pyautogui.screenshot()
             frame = np.array(screenshot)
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
             out_image = Image.new(
                 "RGB",
                 (int(screen_width * shrink), int(screen_height * shrink)),
@@ -65,7 +68,10 @@ def screen_to_ascii():
                         )
                     ]
                     draw.text(
-                        (j * int(cell_width * shrink), i * int(cell_height * shrink)),
+                        (
+                            j * int(cell_width * shrink),
+                            i * int(cell_height * shrink),
+                        ),
                         char,
                         fill=partial_avg_color,
                         font=font,
