@@ -23,7 +23,7 @@ def screen_to_ascii(
     num_cols = 100
     cell_width = screen_width / num_cols
     cell_height = 1.7 * cell_width
-    font_size = int(min(cell_width, cell_height))
+    font_size = int(min(cell_width, cell_height) * shrink * 2)
     font = ImageFont.truetype("fonts/DejaVuSansMono-Bold.ttf", size=font_size)
     num_rows = int(screen_height / cell_height)
 
@@ -31,6 +31,11 @@ def screen_to_ascii(
     out = cv2.VideoWriter(
         "screen_output.mp4", fourcc, fps, (screen_width, screen_height)
     )
+
+    cell_width = int(cell_width * shrink)
+    cell_height = int(cell_height * shrink)
+    screen_width = int(screen_width * shrink)
+    screen_height = int(screen_height * shrink)
 
     prev_time = time.time()
     try:
@@ -45,11 +50,12 @@ def screen_to_ascii(
 
             screenshot = pyautogui.screenshot()
             frame = np.array(screenshot)
+            frame = cv2.resize(frame, (screen_width, screen_height))
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
             out_image = Image.new(
                 "RGB",
-                (int(screen_width * shrink), int(screen_height * shrink)),
+                (screen_width, screen_height),
                 (255, 255, 255),
             )
             draw = ImageDraw.Draw(out_image)
@@ -79,8 +85,8 @@ def screen_to_ascii(
                     ]
                     draw.text(
                         (
-                            j * int(cell_width * shrink),
-                            i * int(cell_height * shrink),
+                            j * cell_width,
+                            i * cell_height,
                         ),
                         char,
                         fill=partial_avg_color,
