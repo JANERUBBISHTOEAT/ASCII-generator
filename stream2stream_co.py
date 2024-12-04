@@ -114,7 +114,6 @@ def process_frame(
         frame = q1.get(timeout=1)
         t = time.time()
         frame = cv2.resize(frame, screen_size)
-        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         print("np cv", time.time() - t)
         t = time.time()
 
