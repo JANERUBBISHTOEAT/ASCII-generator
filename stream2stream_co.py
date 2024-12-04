@@ -16,23 +16,18 @@ def get_screen_size():
     return screen_width, screen_height
 
 
-def capture_screen_mss(monitor):
-    with mss.mss() as sct:
-        t = time.time()
-        screenshot = sct.grab(monitor)
-        print("screenshot", time.time() - t)
-        t = time.time()
-        return np.array(screenshot)
-
-
 alive = True
 
 
 def capture_screen(monitor, q):
     global alive
-    while alive:
-        frame = capture_screen_mss(monitor)
-        q.put(frame)
+    with mss.mss() as sct:
+        while alive:
+            t = time.time()
+            screenshot = sct.grab(monitor)
+            q.put(np.array(screenshot), timeout=1)
+            print("screenshot", time.time() - t)
+            t = time.time()
 
 
 def screen_to_ascii(
@@ -86,14 +81,19 @@ def screen_to_ascii(
         ),
     ]
 
-    for thread in threads:
-        thread.start()
-
-    for thread in threads:
-        thread.join()
-
-    out.release()
-    cv2.destroyAllWindows()
+    global alive
+    try:
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+    except KeyboardInterrupt:
+        alive = False
+        for thread in threads:
+            thread.join()
+    finally:
+        out.release()
+        cv2.destroyAllWindows()
 
 
 def process_frame(
@@ -111,7 +111,7 @@ def process_frame(
     global alive
     prev_time = time.time()
     while alive:
-        frame = q1.get()
+        frame = q1.get(timeout=1)
         t = time.time()
         frame = cv2.resize(frame, screen_size)
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
@@ -177,7 +177,7 @@ def display_frame(out, q2):
     global alive
     while alive:
         t = time.time()
-        out_image = q2.get()
+        out_image = q2.get(timeout=1)
         out_image = np.array(out_image)
         out.write(out_image)
         cv2.imshow("ASCII Stream", out_image)
