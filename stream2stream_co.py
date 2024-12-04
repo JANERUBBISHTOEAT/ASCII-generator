@@ -10,6 +10,8 @@ from PIL import Image, ImageDraw, ImageFont
 
 import alphabets
 
+DEBUG = False
+
 
 def get_screen_size():
     screen_width, screen_height = pyautogui.size()
@@ -23,11 +25,11 @@ def capture_screen(monitor, q):
     global alive
     with mss.mss() as sct:
         while alive:
-            t = time.time()
+            t = time.time() if DEBUG else None
             screenshot = sct.grab(monitor)
             q.put(np.array(screenshot), timeout=1)
-            print("screenshot", time.time() - t)
-            t = time.time()
+            print("screenshot", time.time() - t) if DEBUG else None
+            t = time.time() if DEBUG else None
 
 
 def screen_to_ascii(
@@ -112,10 +114,10 @@ def process_frame(
     prev_time = time.time()
     while alive:
         frame = q1.get(timeout=1)
-        t = time.time()
+        t = time.time() if DEBUG else None
         frame = cv2.resize(frame, screen_size)
-        print("np cv", time.time() - t)
-        t = time.time()
+        print("np cv", time.time() - t) if DEBUG else None
+        t = time.time() if DEBUG else None
 
         screen_width, screen_height = screen_size
 
@@ -125,8 +127,8 @@ def process_frame(
             (255, 255, 255),
         )
         draw = ImageDraw.Draw(out_image)
-        print("new draw", time.time() - t)
-        t = time.time()
+        print("new draw", time.time() - t) if DEBUG else None
+        t = time.time() if DEBUG else None
 
         for i in range(num_rows):
             for j in range(num_cols):
@@ -156,8 +158,8 @@ def process_frame(
                     fill=partial_avg_color,
                     font=font,
                 )
-        print("main", time.time() - t)
-        t = time.time()
+        print("main", time.time() - t) if DEBUG else None
+        t = time.time() if DEBUG else None
 
         if show_fps:
             current_time = time.time()
@@ -175,7 +177,7 @@ def process_frame(
 def display_frame(out, q2):
     global alive
     while alive:
-        t = time.time()
+        t = time.time() if DEBUG else None
         out_image = q2.get(timeout=1)
         out_image = np.array(out_image)
         out.write(out_image)
@@ -184,8 +186,8 @@ def display_frame(out, q2):
             alive = False
             break
 
-        print("display", time.time() - t)
-        t = time.time()
+        print("display", time.time() - t) if DEBUG else None
+        t = time.time() if DEBUG else None
 
 
 if __name__ == "__main__":
