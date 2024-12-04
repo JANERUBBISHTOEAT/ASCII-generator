@@ -40,14 +40,6 @@ def screen_to_ascii(
     prev_time = time.time()
     try:
         while True:
-            current_time = time.time()
-            time_diff = current_time - prev_time
-            if time_diff > 0:
-                fps = 1 / time_diff
-            else:
-                fps = float("inf")
-            prev_time = current_time
-
             screenshot = pyautogui.screenshot()
             frame = np.array(screenshot)
             frame = cv2.resize(frame, (screen_width, screen_height))
@@ -94,7 +86,15 @@ def screen_to_ascii(
                     )
 
             if show_fps:
+                current_time = time.time()
+                time_diff = current_time - prev_time
+                if time_diff > 0:
+                    fps = 1 / time_diff
+                else:
+                    fps = float("inf")
+                prev_time = current_time
                 draw.text((10, 10), f"FPS: {fps:.2f}", fill=(0, 0, 0), font=font)
+
             out_image = np.array(out_image)
             out.write(out_image)
             cv2.imshow("ASCII Stream", out_image)
