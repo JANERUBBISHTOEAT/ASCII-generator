@@ -46,7 +46,10 @@ def capture_video(file_input, q):
         ret, frame = cap.read()
         if not ret:
             break
-        q.put(frame)
+        try:
+            q.put(frame, timeout=1)
+        except queue.Full:
+            pass
         pbar.update(1)
         print("video capture", time.time() - t) if DEBUG else None
         t = time.time() if DEBUG else None
@@ -240,6 +243,31 @@ def display_frame(
                 ),
                 font=font,
             )
+
+            # Progress percentage
+            if total_frames:
+                text = f"{(current_frame + 1) / total_frames * 100:.2f}%"
+                percent_font = ImageFont.truetype(
+                    "fonts/DejaVuSansMono-Bold.ttf", size=50
+                )
+                text_bbox = draw.textbbox((0, 0), text, font=percent_font)
+                text_size = (
+                    text_bbox[2] - text_bbox[0],
+                    text_bbox[3] - text_bbox[1],
+                )
+                draw.text(
+                    (
+                        (out_image.width - text_size[0]) // 2,
+                        (out_image.height - text_size[1] - 60),
+                    ),
+                    text,
+                    fill=(
+                        255 - bg_color[0],
+                        255 - bg_color[1],
+                        255 - bg_color[2],
+                    ),
+                    font=percent_font,
+                )
 
         # Display the progress bar if possible
         out_image = np.array(out_image)
