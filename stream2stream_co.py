@@ -77,6 +77,7 @@ def screen_to_ascii(
     screen_width = int(screen_width * shrink)
     screen_height = int(screen_height * shrink)
 
+    total_frames = None
     if file_input:
         cap = cv2.VideoCapture(file_input)
         fps = int(cap.get(cv2.CAP_PROP_FPS))
@@ -104,7 +105,6 @@ def screen_to_ascii(
                 cell_height,
                 font,
                 num_rows,
-                show_fps,
                 q1,
                 q2,
                 bg_color,
@@ -112,7 +112,7 @@ def screen_to_ascii(
         ),
         threading.Thread(
             target=display_frame,
-            args=(out, q2, total_frames),
+            args=(out, q2, bg_color, font, True, total_frames),
         ),
     ]
 
@@ -139,13 +139,11 @@ def process_frame(
     cell_height: float,
     font: ImageFont.FreeTypeFont,
     num_rows: int,
-    show_fps: bool,
     q1: queue.Queue,
     q2: queue.Queue,
     bg_color: tuple[int, int, int],
 ):
     global alive
-    prev_time = time.time()
     while alive:
         frame = q1.get(timeout=1)
         t = time.time() if DEBUG else None
@@ -193,18 +191,38 @@ def process_frame(
                     font=font,
                 )
 
-        # # Crop the image to remove the border
-        # if bg_color == (255, 255, 255):
-        #     cropped_image = ImageOps.invert(out_image).getbbox()
-        # else:
-        #     cropped_image = out_image.getbbox()
-        # out_image = out_image.crop(cropped_image)
-        # out_image = np.array(out_image)
-
         print("main", time.time() - t) if DEBUG else None
         t = time.time() if DEBUG else None
 
+        q2.put(out_image)
+
+
+def display_frame(
+    out: cv2.VideoWriter,
+    q2: queue.Queue[Image.Image],
+    bg_color: tuple[int, int, int],
+    font: ImageFont.FreeTypeFont,
+    show_fps: bool = True,
+    total_frames: int = None,
+):
+    global alive
+    current_frame = 0
+    prev_time = time.time()
+    while alive:
+        out_image = q2.get(timeout=1)
+        t = time.time() if DEBUG else None
+        out.write(np.array(out_image))
+
+        # Crop the image to remove the border
+        if bg_color == (255, 255, 255):
+            cropped_image = ImageOps.invert(out_image).getbbox()
+        else:
+            cropped_image = out_image.getbbox()
+        out_image = out_image.crop(cropped_image)
+
+        # Display the FPS if required
         if show_fps:
+            draw = ImageDraw.Draw(out_image)
             current_time = time.time()
             time_diff = current_time - prev_time
             if time_diff > 0:
@@ -223,19 +241,9 @@ def process_frame(
                 font=font,
             )
 
-        q2.put(out_image)
-
-
-def display_frame(out, q2, total_frames=None):
-    global alive
-    current_frame = 0
-    while alive:
-        out_image = q2.get(timeout=1)
-        t = time.time() if DEBUG else None
+        # Display the progress bar if possible
         out_image = np.array(out_image)
-        out.write(out_image)
-
-        if total_frames:  # is video, show progress
+        if total_frames:
             progress = (current_frame + 1) / total_frames
             cv2.rectangle(
                 out_image,
