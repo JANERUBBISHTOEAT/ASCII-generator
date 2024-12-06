@@ -45,8 +45,8 @@ def screen_to_ascii(
 ):
     screen_width, screen_height = get_screen_size()
     cell_width = screen_width / num_cols
-    cell_height = cell_width * (screen_height / screen_width)
-    font_size = min(cell_width, cell_height) * 2
+    cell_height = 2 * cell_width
+    font_size = min(cell_width, cell_height) * shrink
     font = ImageFont.truetype("fonts/DejaVuSansMono-Bold.ttf", size=font_size)
     num_rows = int(screen_height / cell_height)
 
@@ -56,10 +56,6 @@ def screen_to_ascii(
     )
 
     monitor = {"top": 0, "left": 0, "width": screen_width, "height": screen_height}
-    cell_width = cell_width * shrink
-    cell_height = cell_height * shrink
-    screen_width = int(screen_width * shrink)
-    screen_height = int(screen_height * shrink)
 
     q1 = queue.Queue(maxsize=1)
     q2 = queue.Queue(maxsize=1)
