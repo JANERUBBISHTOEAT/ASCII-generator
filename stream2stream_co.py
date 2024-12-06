@@ -180,8 +180,8 @@ def process_frame(
 def display_frame(out, q2):
     global alive
     while alive:
-        t = time.time() if DEBUG else None
         out_image = q2.get(timeout=1)
+        t = time.time() if DEBUG else None
         out_image = np.array(out_image)
         out.write(out_image)
         cv2.imshow("ASCII Stream", out_image)
