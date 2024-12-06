@@ -6,7 +6,7 @@ import cv2
 import mss
 import numpy as np
 import pyautogui
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 import alphabets
 
@@ -61,16 +61,14 @@ def screen_to_ascii(
     font = ImageFont.truetype("fonts/DejaVuSansMono-Bold.ttf", size=font_size)
     num_rows = int(screen_height / cell_height)
 
-    fourcc = cv2.VideoWriter_fourcc(*"XVID")
-    out = cv2.VideoWriter(
-        "screen_output.mp4", fourcc, fps, (screen_width, screen_height)
-    )
-
     monitor = {"top": 0, "left": 0, "width": screen_width, "height": screen_height}
     cell_width = cell_width * shrink
     cell_height = cell_height * shrink
     screen_width = int(screen_width * shrink)
     screen_height = int(screen_height * shrink)
+
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    out = cv2.VideoWriter("output.mp4", fourcc, fps, (screen_width, screen_height))
 
     q1 = queue.Queue(maxsize=1)
     q2 = queue.Queue(maxsize=1)
@@ -178,6 +176,15 @@ def process_frame(
                     fill=partial_avg_color,
                     font=font,
                 )
+
+        # # Crop the image to remove the border
+        # if bg_color == (255, 255, 255):
+        #     cropped_image = ImageOps.invert(out_image).getbbox()
+        # else:
+        #     cropped_image = out_image.getbbox()
+        # out_image = out_image.crop(cropped_image)
+        # out_image = np.array(out_image)
+
         print("main", time.time() - t) if DEBUG else None
         t = time.time() if DEBUG else None
 
@@ -217,8 +224,8 @@ def display_frame(out, q2):
 
         print("display", time.time() - t) if DEBUG else None
         t = time.time() if DEBUG else None
-    out.release()
 
 
 if __name__ == "__main__":
     screen_to_ascii(file_input="data/input.mp4")
+    screen_to_ascii()
