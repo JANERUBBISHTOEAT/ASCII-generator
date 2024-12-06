@@ -35,6 +35,16 @@ def capture_screen(monitor, q):
             t = time.time() if DEBUG else None
 
 
+def capture_video(file_input, q):
+    cap = cv2.VideoCapture(file_input)
+    while alive and cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+        q.put(frame)
+    cap.release()
+
+
 def screen_to_ascii(
     CHAR_LIST: list[str] = alphabets.GENERAL["complex"],
     num_cols: int = 100,
@@ -42,6 +52,7 @@ def screen_to_ascii(
     fps: int = 20,
     bg_color: tuple[int] = (0, 0, 0),
     show_fps: bool = True,
+    file_input: str = None,
 ):
     screen_width, screen_height = get_screen_size()
     cell_width = screen_width / num_cols
@@ -65,7 +76,10 @@ def screen_to_ascii(
     q2 = queue.Queue(maxsize=1)
 
     threads = [
-        threading.Thread(target=capture_screen, args=(monitor, q1)),
+        threading.Thread(
+            target=capture_video if file_input else capture_screen,
+            args=(file_input, q1) if file_input else (monitor, q1),
+        ),
         threading.Thread(
             target=process_frame,
             args=(
@@ -203,7 +217,8 @@ def display_frame(out, q2):
 
         print("display", time.time() - t) if DEBUG else None
         t = time.time() if DEBUG else None
+    out.release()
 
 
 if __name__ == "__main__":
-    screen_to_ascii()
+    screen_to_ascii(file_input="data/input.mp4")
