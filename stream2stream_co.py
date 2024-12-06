@@ -80,6 +80,7 @@ def screen_to_ascii(
     if file_input:
         cap = cv2.VideoCapture(file_input)
         fps = int(cap.get(cv2.CAP_PROP_FPS))
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         cap.release()
 
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
@@ -111,7 +112,7 @@ def screen_to_ascii(
         ),
         threading.Thread(
             target=display_frame,
-            args=(out, q2),
+            args=(out, q2, total_frames),
         ),
     ]
 
@@ -225,13 +226,26 @@ def process_frame(
         q2.put(out_image)
 
 
-def display_frame(out, q2):
+def display_frame(out, q2, total_frames=None):
     global alive
+    current_frame = 0
     while alive:
         out_image = q2.get(timeout=1)
         t = time.time() if DEBUG else None
         out_image = np.array(out_image)
         out.write(out_image)
+
+        if total_frames:  # is video, show progress
+            progress = (current_frame + 1) / total_frames
+            cv2.rectangle(
+                out_image,
+                (10, out_image.shape[0] - 30),
+                (int(out_image.shape[1] * progress), out_image.shape[0] - 10),
+                (255, 255, 255),
+                -1,
+            )
+            current_frame += 1
+
         cv2.imshow("ASCII Stream", out_image)
         if cv2.waitKey(1) & 0xFF == ord("q"):
             alive = False
