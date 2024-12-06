@@ -6,6 +6,7 @@ import cv2
 import mss
 import numpy as np
 import pyautogui
+import tqdm
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 import alphabets
@@ -36,12 +37,21 @@ def capture_screen(monitor, q):
 
 
 def capture_video(file_input, q):
+    global alive
     cap = cv2.VideoCapture(file_input)
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    pbar = tqdm.tqdm(total=total_frames)
     while alive and cap.isOpened():
+        t = time.time() if DEBUG else None
         ret, frame = cap.read()
         if not ret:
             break
         q.put(frame)
+        pbar.update(1)
+        print("video capture", time.time() - t) if DEBUG else None
+        t = time.time() if DEBUG else None
+    alive = False
+    pbar.close()
     cap.release()
 
 
@@ -66,6 +76,11 @@ def screen_to_ascii(
     cell_height = cell_height * shrink
     screen_width = int(screen_width * shrink)
     screen_height = int(screen_height * shrink)
+
+    if file_input:
+        cap = cv2.VideoCapture(file_input)
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
+        cap.release()
 
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     out = cv2.VideoWriter("output.mp4", fourcc, fps, (screen_width, screen_height))
@@ -228,4 +243,4 @@ def display_frame(out, q2):
 
 if __name__ == "__main__":
     screen_to_ascii(file_input="data/input.mp4")
-    screen_to_ascii()
+    # screen_to_ascii()
