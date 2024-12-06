@@ -49,7 +49,8 @@ def capture_video(file_input, q):
         try:
             q.put(frame, timeout=1)
         except queue.Full:
-            pass
+            if alive:
+                q.put(frame)
         pbar.update(1)
         print("video capture", time.time() - t) if DEBUG else None
         t = time.time() if DEBUG else None
@@ -248,7 +249,7 @@ def display_frame(
             if total_frames:
                 text = f"{(current_frame + 1) / total_frames * 100:.2f}%"
                 percent_font = ImageFont.truetype(
-                    "fonts/DejaVuSansMono-Bold.ttf", size=50
+                    "fonts/DejaVuSansMono-Bold.ttf", size=font.size * 2
                 )
                 text_bbox = draw.textbbox((0, 0), text, font=percent_font)
                 text_size = (
