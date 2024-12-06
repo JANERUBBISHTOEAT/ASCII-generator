@@ -37,12 +37,13 @@ def capture_screen(monitor, q):
 
 def screen_to_ascii(
     CHAR_LIST=alphabets.GENERAL["complex"],
+    num_cols=100,
     shrink=0.5,
     fps=20,
+    bg_color=(0, 0, 0),
     show_fps=True,
 ):
     screen_width, screen_height = get_screen_size()
-    num_cols = 100
     cell_width = screen_width / num_cols
     cell_height = 1.7 * cell_width
     font_size = int(min(cell_width, cell_height) * shrink * 2)
@@ -78,6 +79,7 @@ def screen_to_ascii(
                 show_fps,
                 q1,
                 q2,
+                bg_color,
             ),
         ),
         threading.Thread(
@@ -112,6 +114,7 @@ def process_frame(
     show_fps,
     q1,
     q2,
+    bg_color,
 ):
     global alive
     prev_time = time.time()
@@ -127,7 +130,7 @@ def process_frame(
         out_image = Image.new(
             "RGB",
             (screen_width, screen_height),
-            (255, 255, 255),
+            bg_color,
         )
         draw = ImageDraw.Draw(out_image)
         print("new draw", time.time() - t) if DEBUG else None
@@ -172,7 +175,16 @@ def process_frame(
             else:
                 fps = float("inf")
             prev_time = current_time
-            draw.text((10, 10), f"FPS: {fps:.2f}", fill=(0, 0, 0), font=font)
+            draw.text(
+                (10, 10),
+                f"FPS: {fps:.2f}",
+                fill=(
+                    255 - bg_color[0],
+                    255 - bg_color[1],
+                    255 - bg_color[2],
+                ),
+                font=font,
+            )
 
         q2.put(out_image)
 
