@@ -37,15 +37,16 @@ def capture_screen(monitor, q):
 
 def screen_to_ascii(
     CHAR_LIST=alphabets.GENERAL["complex"],
+    num_cols=100,
     shrink=0.5,
     fps=20,
+    bg_code=(0, 0, 0),
     show_fps=True,
 ):
     screen_width, screen_height = get_screen_size()
-    num_cols = 100
     cell_width = screen_width / num_cols
-    cell_height = 1.7 * cell_width
-    font_size = int(min(cell_width, cell_height) * shrink * 2)
+    cell_height = cell_width * (screen_height / screen_width)
+    font_size = min(cell_width, cell_height) * 2
     font = ImageFont.truetype("fonts/DejaVuSansMono-Bold.ttf", size=font_size)
     num_rows = int(screen_height / cell_height)
 
@@ -55,8 +56,8 @@ def screen_to_ascii(
     )
 
     monitor = {"top": 0, "left": 0, "width": screen_width, "height": screen_height}
-    cell_width = int(cell_width * shrink)
-    cell_height = int(cell_height * shrink)
+    cell_width = cell_width * shrink
+    cell_height = cell_height * shrink
     screen_width = int(screen_width * shrink)
     screen_height = int(screen_height * shrink)
 
@@ -78,6 +79,7 @@ def screen_to_ascii(
                 show_fps,
                 q1,
                 q2,
+                bg_code,
             ),
         ),
         threading.Thread(
@@ -105,13 +107,14 @@ def process_frame(
     CHAR_LIST,
     screen_size,
     num_cols,
-    cell_width,
-    cell_height,
+    cell_width: float,
+    cell_height: float,
     font,
     num_rows,
     show_fps,
     q1,
     q2,
+    bg_code,
 ):
     global alive
     prev_time = time.time()
@@ -123,11 +126,16 @@ def process_frame(
         t = time.time() if DEBUG else None
 
         screen_width, screen_height = screen_size
+        bbox = font.getbbox("A")
+        char_width = bbox[2] - bbox[0]
+        char_height = bbox[3] - bbox[1]
+        out_width = char_width * num_cols
+        out_height = char_height * num_rows
 
         out_image = Image.new(
             "RGB",
-            (screen_width, screen_height),
-            (255, 255, 255),
+            (out_width, out_height),
+            bg_code,
         )
         draw = ImageDraw.Draw(out_image)
         print("new draw", time.time() - t) if DEBUG else None
@@ -154,8 +162,8 @@ def process_frame(
                 ]
                 draw.text(
                     (
-                        j * cell_width,
-                        i * cell_height,
+                        j * char_width,
+                        i * char_height,
                     ),
                     char,
                     fill=partial_avg_color,
