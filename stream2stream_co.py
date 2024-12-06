@@ -36,12 +36,12 @@ def capture_screen(monitor, q):
 
 
 def screen_to_ascii(
-    CHAR_LIST=alphabets.GENERAL["complex"],
-    num_cols=100,
-    shrink=0.5,
-    fps=20,
-    bg_color=(0, 0, 0),
-    show_fps=True,
+    CHAR_LIST: list[str] = alphabets.GENERAL["complex"],
+    num_cols: int = 100,
+    shrink: float = 0.5,
+    fps: int = 20,
+    bg_color: tuple[int] = (0, 0, 0),
+    show_fps: bool = True,
 ):
     screen_width, screen_height = get_screen_size()
     cell_width = screen_width / num_cols
@@ -56,8 +56,8 @@ def screen_to_ascii(
     )
 
     monitor = {"top": 0, "left": 0, "width": screen_width, "height": screen_height}
-    cell_width = int(cell_width * shrink)
-    cell_height = int(cell_height * shrink)
+    cell_width = cell_width * shrink
+    cell_height = cell_height * shrink
     screen_width = int(screen_width * shrink)
     screen_height = int(screen_height * shrink)
 
@@ -104,17 +104,17 @@ def screen_to_ascii(
 
 
 def process_frame(
-    CHAR_LIST,
-    screen_size,
-    num_cols,
-    cell_width,
-    cell_height,
-    font,
-    num_rows,
-    show_fps,
-    q1,
-    q2,
-    bg_color,
+    CHAR_LIST: list[str],
+    screen_size: tuple[int, int],
+    num_cols: int,
+    cell_width: float,
+    cell_height: float,
+    font: ImageFont.FreeTypeFont,
+    num_rows: int,
+    show_fps: bool,
+    q1: queue.Queue,
+    q2: queue.Queue,
+    bg_color: tuple[int, int, int],
 ):
     global alive
     prev_time = time.time()
