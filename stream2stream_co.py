@@ -12,7 +12,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 import alphabets
 
-DEBUG = True
+DEBUG = False
 
 
 def get_screen_size():
@@ -29,12 +29,11 @@ def capture_screen(monitor, q):
         while alive:
             t = time.time() if DEBUG else None
             screenshot = sct.grab(monitor)
+            print("screenshot", time.time() - t) if DEBUG else None
             try:
                 q.put(np.array(screenshot), timeout=None if DEBUG else 1)
             except queue.Full:
                 pass
-            print("screenshot", time.time() - t) if DEBUG else None
-            t = time.time() if DEBUG else None
 
 
 def capture_video(file_input, q):
@@ -45,6 +44,7 @@ def capture_video(file_input, q):
     while alive and cap.isOpened():
         t = time.time() if DEBUG else None
         ret, frame = cap.read()
+        print("video capture", time.time() - t) if DEBUG else None
         if not ret:
             break
         try:
@@ -53,8 +53,6 @@ def capture_video(file_input, q):
             if alive:
                 q.put(frame)
         pbar.update(1)
-        print("video capture", time.time() - t) if DEBUG else None
-        t = time.time() if DEBUG else None
     alive = False
     pbar.close()
     cap.release()
@@ -153,8 +151,6 @@ def process_frame(
         frame = q1.get(timeout=None if DEBUG else 1)
         t = time.time() if DEBUG else None
         frame = cv2.resize(frame, screen_size)
-        print("np cv", time.time() - t) if DEBUG else None
-        t = time.time() if DEBUG else None
 
         screen_width, screen_height = screen_size
 
@@ -164,8 +160,6 @@ def process_frame(
             bg_color,
         )
         draw = ImageDraw.Draw(out_image)
-        print("new draw", time.time() - t) if DEBUG else None
-        t = time.time() if DEBUG else None
 
         # Clip the frame to the nearest multiple of cell_width and cell_height
         h_aligned = int((frame.shape[0] // cell_height) * cell_height)
@@ -300,5 +294,5 @@ def display_frame(
 
 
 if __name__ == "__main__":
-    screen_to_ascii(file_input="data/input.mp4")
-    # screen_to_ascii()
+    # screen_to_ascii(file_input="data/input.mp4")
+    screen_to_ascii()
