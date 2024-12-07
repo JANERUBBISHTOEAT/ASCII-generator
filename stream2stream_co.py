@@ -161,11 +161,6 @@ def process_frame(
         )
         draw = ImageDraw.Draw(out_image)
 
-        # Clip the frame to the nearest multiple of cell_width and cell_height
-        h_aligned = int((frame.shape[0] // cell_height) * cell_height)
-        w_aligned = int((frame.shape[1] // cell_width) * cell_width)
-        frame = frame[:h_aligned, :w_aligned, :]
-
         # Use np slicing to get the partial images
         partial_images = sliding_window_view(
             frame, (int(cell_height), int(cell_width), 3)
