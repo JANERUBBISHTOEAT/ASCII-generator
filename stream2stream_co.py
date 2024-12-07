@@ -7,11 +7,12 @@ import mss
 import numpy as np
 import pyautogui
 import tqdm
+from numpy.lib.stride_tricks import sliding_window_view
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 import alphabets
 
-DEBUG = False
+DEBUG = True
 
 
 def get_screen_size():
@@ -29,7 +30,7 @@ def capture_screen(monitor, q):
             t = time.time() if DEBUG else None
             screenshot = sct.grab(monitor)
             try:
-                q.put(np.array(screenshot), timeout=1)
+                q.put(np.array(screenshot), timeout=None if DEBUG else 1)
             except queue.Full:
                 pass
             print("screenshot", time.time() - t) if DEBUG else None
@@ -47,7 +48,7 @@ def capture_video(file_input, q):
         if not ret:
             break
         try:
-            q.put(frame, timeout=1)
+            q.put(frame, timeout=None if DEBUG else 1)
         except queue.Full:
             if alive:
                 q.put(frame)
@@ -143,13 +144,13 @@ def process_frame(
     cell_height: float,
     font: ImageFont.FreeTypeFont,
     num_rows: int,
-    q1: queue.Queue,
-    q2: queue.Queue,
+    q1: queue.Queue[np.ndarray],
+    q2: queue.Queue[Image.Image],
     bg_color: tuple[int, int, int],
 ):
     global alive
     while alive:
-        frame = q1.get(timeout=1)
+        frame = q1.get(timeout=None if DEBUG else 1)
         t = time.time() if DEBUG else None
         frame = cv2.resize(frame, screen_size)
         print("np cv", time.time() - t) if DEBUG else None
@@ -166,30 +167,36 @@ def process_frame(
         print("new draw", time.time() - t) if DEBUG else None
         t = time.time() if DEBUG else None
 
-        for i in range(num_rows):
-            for j in range(num_cols):
-                partial_image = frame[
-                    int(i * cell_height) : min(
-                        int((i + 1) * cell_height), screen_height
-                    ),
-                    int(j * cell_width) : min(int((j + 1) * cell_width), screen_width),
-                    :,
-                ]
-                partial_avg_color = np.sum(np.sum(partial_image, axis=0), axis=0) / (
-                    cell_height * cell_width
-                )
-                partial_avg_color = tuple(partial_avg_color.astype(np.int32).tolist())
-                char = CHAR_LIST[
-                    min(
-                        int(np.mean(partial_image) * len(CHAR_LIST) / 255),
-                        len(CHAR_LIST) - 1,
-                    )
-                ]
+        # Clip the frame to the nearest multiple of cell_width and cell_height
+        h_aligned = int((frame.shape[0] // cell_height) * cell_height)
+        w_aligned = int((frame.shape[1] // cell_width) * cell_width)
+        frame = frame[:h_aligned, :w_aligned, :]
+
+        # Use np slicing to get the partial images
+        partial_images = sliding_window_view(
+            frame, (int(cell_height), int(cell_width), 3)
+        )
+        partial_images = partial_images[:: int(cell_height), :: int(cell_width), 0, 0]
+
+        # Use np mean to accelerate the process
+        partial_avg_colors = partial_images.mean(axis=(2))
+        partial_avg_colors = partial_avg_colors.astype(np.int32)
+
+        mean_values = partial_images.mean(axis=(2, 3))
+
+        char_indices = np.clip(
+            (mean_values * len(CHAR_LIST) / 255).astype(int), 0, len(CHAR_LIST) - 1
+        )
+        chars = np.array(list(CHAR_LIST))[char_indices]
+
+        y_coords = np.arange(num_rows) * cell_height
+        x_coords = np.arange(num_cols) * cell_width
+        for i, y in enumerate(y_coords):
+            for j, x in enumerate(x_coords):
+                partial_avg_color = tuple(partial_avg_colors[i, j].tolist())
+                char = chars[i, j]
                 draw.text(
-                    (
-                        j * cell_width,
-                        i * cell_height,
-                    ),
+                    (x, y),
                     char,
                     fill=partial_avg_color,
                     font=font,
@@ -213,7 +220,7 @@ def display_frame(
     current_frame = 0
     prev_time = time.time()
     while alive:
-        out_image = q2.get(timeout=1)
+        out_image = q2.get(timeout=None if DEBUG else 1)
         t = time.time() if DEBUG else None
         out.write(np.array(out_image))
 
