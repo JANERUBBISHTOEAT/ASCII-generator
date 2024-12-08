@@ -107,7 +107,7 @@ def screen_to_ascii(
         threading.Thread(
             target=process_frame,
             args=(
-                CHAR_LIST,
+                np.array(list(CHAR_LIST)),
                 (screen_width, screen_height),
                 num_cols,
                 cell_width,
@@ -142,7 +142,7 @@ def screen_to_ascii(
 
 
 def process_frame(
-    CHAR_LIST: list[str],
+    CHAR_LIST: np.ndarray,
     screen_size: tuple[int, int],
     num_cols: int,
     cell_width: float,
@@ -200,7 +200,7 @@ def process_frame(
         char_indices = np.clip(
             (mean_values * len(CHAR_LIST) / 255).astype(int), 0, len(CHAR_LIST) - 1
         )
-        chars = np.array(list(CHAR_LIST))[char_indices]
+        chars: str = CHAR_LIST[char_indices]
 
         print("mean", time.time() - t) if DEBUG else None
         t = time.time() if DEBUG else None
