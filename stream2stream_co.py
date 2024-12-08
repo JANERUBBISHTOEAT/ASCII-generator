@@ -12,7 +12,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 import alphabets
 
-DEBUG = False
+DEBUG = True
 
 
 def get_screen_size():
@@ -67,6 +67,7 @@ def screen_to_ascii(
     bg_color: tuple[int] = (0, 0, 0),
     show_fps: bool = True,
     file_input: str = None,
+    low_res: bool = False,
 ):
     screen_width, screen_height = get_screen_size()
     cell_width = screen_width / num_cols
@@ -116,11 +117,12 @@ def screen_to_ascii(
                 q1,
                 q2,
                 bg_color,
+                low_res,
             ),
         ),
         threading.Thread(
             target=display_frame,
-            args=(out, q2, bg_color, font, True, total_frames),
+            args=(out, q2, bg_color, font, show_fps, total_frames),
         ),
     ]
 
@@ -150,6 +152,7 @@ def process_frame(
     q1: queue.Queue[np.ndarray],
     q2: queue.Queue[Image.Image],
     bg_color: tuple[int, int, int],
+    low_res: bool = False,
 ):
     global alive
     while alive:
@@ -165,10 +168,6 @@ def process_frame(
         )
         draw = ImageDraw.Draw(out_image)
 
-        # Clip the frame to the nearest multiple of cell_width and cell_height
-        h_aligned = int((frame.shape[0] // cell_height) * cell_height)
-        w_aligned = int((frame.shape[1] // cell_width) * cell_width)
-        frame = frame[:h_aligned, :w_aligned, :]
         if DEBUG:
             cv2.imshow("frame1", frame)
             if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -179,18 +178,32 @@ def process_frame(
         partial_images = sliding_window_view(
             frame, (int(cell_height), int(cell_width), 3)
         )
-        partial_images = partial_images[:: int(cell_height), :: int(cell_width)]
+        if low_res:
+            partial_images = partial_images[
+                :: int(cell_height),
+                :: int(cell_width),
+                0,
+                0,
+            ]
+            partial_avg_colors = partial_images.mean(axis=(2))
+            mean_values = partial_images.mean(axis=(2, 3))
+        else:
+            partial_images = partial_images[
+                :: int(cell_height),
+                :: int(cell_width),
+            ]
+            partial_avg_colors = partial_images.mean(axis=(2, 3, 4))
+            mean_values = partial_images.mean(axis=(2, 3, 4, 5))
 
-        # Use np mean to accelerate the process
-        partial_avg_colors = partial_images.mean(axis=(2, 3, 4))
         partial_avg_colors = partial_avg_colors.astype(np.int32)
-
-        mean_values = partial_images.mean(axis=(2, 3, 4, 5))
 
         char_indices = np.clip(
             (mean_values * len(CHAR_LIST) / 255).astype(int), 0, len(CHAR_LIST) - 1
         )
         chars = np.array(list(CHAR_LIST))[char_indices]
+
+        print("mean", time.time() - t) if DEBUG else None
+        t = time.time() if DEBUG else None
 
         y_coords = np.arange(num_rows) * cell_height
         x_coords = np.arange(num_cols) * cell_width
@@ -205,7 +218,7 @@ def process_frame(
                     font=font,
                 )
 
-        print("main", time.time() - t) if DEBUG else None
+        print("text", time.time() - t) if DEBUG else None
         t = time.time() if DEBUG else None
 
         q2.put(out_image)
@@ -304,4 +317,4 @@ def display_frame(
 
 if __name__ == "__main__":
     # screen_to_ascii(file_input="data/input.mp4")
-    screen_to_ascii()
+    screen_to_ascii(low_res=True)
