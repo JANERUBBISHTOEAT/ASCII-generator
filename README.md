@@ -20,13 +20,15 @@ This repository is a fork of the original repository, featuring stream-to-stream
 
 ## Rationale
 
-### Single-threaded performance
+### v1.0 Single-threaded performance
 
 ![single-thread-fps](./demo/single-thread-fps.png)
 > Before threading, the typical fps is 7-8
 > (4K, stream-to-stream, file-to-file not supported yet)
 
-### Multi-threaded performance
+### v2.0 - Multi-threaded performance
+
+Separating major functions into separate threads with a shared queue of size 1 significantly improves performance.
 
 ![multi-thread-fps](./demo/multi-thread-fps.png)
 > After splitting the functions into separate threads, the typical fps is 9-10
@@ -36,7 +38,13 @@ This repository is a fork of the original repository, featuring stream-to-stream
 > The nested loop version (`main`) takes approximately 0.09 seconds, serving as the program's bottleneck.
 > Note that the `screenshot` time here is inaccurately measured, as it includes the wait time for putting the image into the queue while the `main` function continues to process the queue.
 
-### Performance optimization
+## Performance optimization
+
+Overall performance (fps) is now determined by the most time-consuming thread, which we will split into separate threads.
+
+### v1.1 - use `mss` instead of `pyautogui`
+
+The screenshot time is reduced from `0.1` to `0.04` seconds, increasing fps by 5-10 at 4K resolution.
 
 ### v3.0 - sliding window + `np.mean` + threading
 
@@ -44,7 +52,7 @@ This repository is a fork of the original repository, featuring stream-to-stream
 > After replacing the nested loops with `np.mean`, the typical fps is 17-20
 > (4K, file-to-file)
 
-### v3.1 - Split `screenshot` and `np` + minor optimizations
+### v3.0.1 - Split `screenshot` and `np` + minor optimizations
 
 ![after-np-split](./demo/after-np-split.png)
 ![after-np-stacked](./demo/after-np-stacked.png)
