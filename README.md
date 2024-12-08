@@ -1,5 +1,19 @@
 # [PYTHON] ASCII generator
 
+- [\[PYTHON\] ASCII generator](#python-ascii-generator)
+  - [Fork message](#fork-message)
+  - [Introduction](#introduction)
+  - [Changes](#changes)
+  - [Rationale](#rationale)
+    - [v1.0 Single-threaded performance](#v10-single-threaded-performance)
+    - [v2.0 - Multi-threaded performance](#v20---multi-threaded-performance)
+  - [Performance optimization](#performance-optimization)
+    - [v1.1 - use `mss` instead of `pyautogui`](#v11---use-mss-instead-of-pyautogui)
+    - [v3.0 - sliding window + `np.mean` + threading](#v30---sliding-window--npmean--threading)
+    - [v3.0.1 - Split `screenshot` and `np` + minor optimizations](#v301---split-screenshot-and-np--minor-optimizations)
+    - [v3.2 - Split `mean` and `text` + minor optimizations](#v32---split-mean-and-text--minor-optimizations)
+  - [Next steps](#next-steps)
+
 ## Fork message
 
 可播彩六
@@ -61,10 +75,10 @@ The screenshot time is reduced from `0.1` to `0.04` seconds, increasing fps by 5
 ### v3.2 - Split `mean` and `text` + minor optimizations
 
 ![split-maen-text](./demo/split-mean-text.png)
-> Splitting `mean` and `text` decreases bottleneck time to 0.06 seconds, yielding a theoretical throughput of 16.67 fps and an actual performance of 17-20 fps.
+> Splitting `mean` and `text` decreases bottleneck time to 0.06 seconds, yielding a theoretical performance of 16.67 fps and an actual performance of 17-20 fps.
 > (4K, file-to-file)
 
-### Next steps
+## Next steps
 
 Move time-consuming functions to separate threads to further improve performance.
 
