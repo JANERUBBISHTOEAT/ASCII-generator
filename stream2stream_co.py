@@ -75,7 +75,8 @@ def screen_to_ascii(
     file_input: str = None,
     low_res: bool = False,
 ):
-    screen_width, screen_height = get_screen_size()
+    screen_size = get_screen_size()
+    screen_width, screen_height = screen_size
     cell_width = screen_width / num_cols
     cell_height = 1.7 * cell_width
     font_size = int(min(cell_width, cell_height) * shrink * 2)
@@ -87,6 +88,7 @@ def screen_to_ascii(
     cell_height = cell_height * shrink
     screen_width = int(screen_width * shrink)
     screen_height = int(screen_height * shrink)
+    screen_size = (screen_width, screen_height)
 
     total_frames = None
     if file_input:
@@ -96,39 +98,50 @@ def screen_to_ascii(
         cap.release()
 
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    out = cv2.VideoWriter("output.mp4", fourcc, fps, (screen_width, screen_height))
+    out = cv2.VideoWriter("output.mp4", fourcc, fps, screen_size)
 
     q1 = queue.Queue(maxsize=1)
     q2 = queue.Queue(maxsize=1)
+    q3 = queue.Queue(maxsize=1)
 
     threads = [
         threading.Thread(
             target=capture_video if file_input else capture_screen,
-            args=(
-                (file_input, q1)
-                if file_input
-                else (monitor, q1, (screen_width, screen_height))
-            ),
+            args=((file_input, q1) if file_input else (monitor, q1, screen_size)),
         ),
         threading.Thread(
             target=process_frame,
             args=(
                 np.array(list(CHAR_LIST)),
-                (screen_width, screen_height),
                 num_cols,
                 cell_width,
                 cell_height,
-                font,
                 num_rows,
                 q1,
                 q2,
-                bg_color,
                 low_res,
             ),
         ),
         threading.Thread(
+            target=draw_text,
+            args=(
+                screen_size,
+                font,
+                bg_color,
+                q2,
+                q3,
+            ),
+        ),
+        threading.Thread(
             target=display_frame,
-            args=(out, q2, bg_color, font, show_fps, total_frames),
+            args=(
+                out,
+                q3,
+                bg_color,
+                font,
+                show_fps,
+                total_frames,
+            ),
         ),
     ]
 
@@ -149,30 +162,18 @@ def screen_to_ascii(
 
 def process_frame(
     CHAR_LIST: np.ndarray,
-    screen_size: tuple[int, int],
     num_cols: int,
     cell_width: float,
     cell_height: float,
-    font: ImageFont.FreeTypeFont,
     num_rows: int,
     q1: queue.Queue[np.ndarray],
     q2: queue.Queue[Image.Image],
-    bg_color: tuple[int, int, int],
     low_res: bool = False,
 ):
     global alive
     while alive:
         frame = q1.get(timeout=None if DEBUG else 1)
         t = time.time() if DEBUG else None
-
-        screen_width, screen_height = screen_size
-
-        out_image = Image.new(
-            "RGB",
-            (screen_width, screen_height),
-            bg_color,
-        )
-        draw = ImageDraw.Draw(out_image)
 
         if DEBUG:
             cv2.imshow("frame1", frame)
@@ -207,12 +208,41 @@ def process_frame(
             (mean_values * len(CHAR_LIST) / 255).astype(int), 0, len(CHAR_LIST) - 1
         )
         chars: str = CHAR_LIST[char_indices]
+        y_coords = np.arange(num_rows) * cell_height
+        x_coords = np.arange(num_cols) * cell_width
 
         print("mean", time.time() - t) if DEBUG else None
         t = time.time() if DEBUG else None
 
-        y_coords = np.arange(num_rows) * cell_height
-        x_coords = np.arange(num_cols) * cell_width
+        try:
+            q2.put(
+                (partial_avg_colors, chars, y_coords, x_coords),
+                timeout=None if DEBUG else 1,
+            )
+        except queue.Full:
+            pass
+
+
+def draw_text(
+    screen_size: tuple[int, int],
+    font: ImageFont.FreeTypeFont,
+    bg_color: tuple[int],
+    q2: queue.Queue[tuple[np.ndarray, str, np.ndarray, np.ndarray]],
+    q3: queue.Queue[Image.Image],
+):
+    global alive
+    while alive:
+        args = q2.get(timeout=None if DEBUG else 1)
+        partial_avg_colors, chars, y_coords, x_coords = args
+        t = time.time() if DEBUG else None
+
+        out_image = Image.new(
+            "RGB",
+            screen_size,
+            bg_color,
+        )
+        draw = ImageDraw.Draw(out_image)
+
         for i, y in enumerate(y_coords):
             for j, x in enumerate(x_coords):
                 partial_avg_color = tuple(partial_avg_colors[i, j].tolist())
@@ -223,16 +253,16 @@ def process_frame(
                     fill=partial_avg_color,
                     font=font,
                 )
-
         print("text", time.time() - t) if DEBUG else None
-        t = time.time() if DEBUG else None
-
-        q2.put(out_image)
+        try:
+            q3.put(out_image, timeout=None if DEBUG else 1)
+        except queue.Full:
+            pass
 
 
 def display_frame(
     out: cv2.VideoWriter,
-    q2: queue.Queue[Image.Image],
+    q3: queue.Queue[Image.Image],
     bg_color: tuple[int, int, int],
     font: ImageFont.FreeTypeFont,
     show_fps: bool = True,
@@ -242,7 +272,7 @@ def display_frame(
     current_frame = 0
     prev_time = time.time()
     while alive:
-        out_image = q2.get(timeout=None if DEBUG else 1)
+        out_image = q3.get(timeout=None if DEBUG else 1)
         t = time.time() if DEBUG else None
         out.write(np.array(out_image))
 
