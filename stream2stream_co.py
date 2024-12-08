@@ -176,16 +176,90 @@ def process_frame(
     q2: queue.Queue[Image.Image],
     low_res: bool = False,
 ):
+    def display_debug_frame(
+        partial_images: np.ndarray,
+        partial_avg_colors: np.ndarray,
+    ):
+        global alive
+        partial_images = np.squeeze(partial_images, axis=2)
+
+        row_images = [
+            cv2.hconcat(
+                [
+                    partial_images[i, j].astype(np.uint8)
+                    for j in range(partial_images.shape[1])
+                ]
+            )
+            for i in range(partial_images.shape[0])
+        ]
+        full_image = cv2.vconcat(row_images)
+
+        cv2.imshow("frame_concat", full_image)
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            alive = False
+
+        vertical_line_thickness = 1
+        horizontal_line_thickness = 1
+        row_images = [
+            cv2.hconcat(
+                [
+                    cv2.hconcat(
+                        [partial_images[i, j].astype(np.uint8)]
+                        + [
+                            np.zeros(
+                                (partial_images.shape[2], vertical_line_thickness, 3),
+                                dtype=np.uint8,
+                            )
+                        ]
+                        if j < partial_images.shape[1] - 1
+                        else [partial_images[i, j].astype(np.uint8)]
+                    )
+                    for j in range(partial_images.shape[1])
+                ]
+            )
+            for i in range(partial_images.shape[0])
+        ]
+        full_image_with_borders = cv2.vconcat(
+            [
+                (
+                    cv2.vconcat(
+                        [
+                            row_images[i],
+                            np.zeros(
+                                (horizontal_line_thickness, row_images[i].shape[1], 3),
+                                dtype=np.uint8,
+                            ),
+                        ]
+                    )
+                    if i < len(row_images) - 1
+                    else row_images[i]
+                )
+                for i in range(len(row_images))
+            ]
+        )
+
+        cv2.imshow("frame_concat_border", full_image_with_borders)
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            alive = False
+
+        scale_factor = 20
+        full_image_resized = cv2.resize(
+            partial_avg_colors,
+            (
+                partial_avg_colors.shape[1] * scale_factor,
+                partial_avg_colors.shape[0] * scale_factor,
+            ),
+            interpolation=cv2.INTER_NEAREST,
+        )
+
+        cv2.imshow("color_concat", full_image_resized)
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            alive = False
+
     global alive
     while alive:
         frame = q1.get(timeout=None if DEBUG else 1)
         t = time.time() if DEBUG else None
-
-        if DEBUG:
-            cv2.imshow("frame1", frame)
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                alive = False
-                break
 
         # Use np slicing to get the partial images
         partial_images = sliding_window_view(
@@ -208,7 +282,10 @@ def process_frame(
             partial_avg_colors = partial_images.mean(axis=(2, 3, 4))
             mean_values = partial_images.mean(axis=(2, 3, 4, 5))
 
-        partial_avg_colors = partial_avg_colors.astype(np.int32)
+        partial_avg_colors = partial_avg_colors.astype(np.uint8)
+
+        if DEBUG and not low_res:
+            display_debug_frame(partial_images, partial_avg_colors)
 
         char_indices = np.clip(
             (mean_values * len(CHAR_LIST) / 255).astype(int), 0, len(CHAR_LIST) - 1
@@ -281,7 +358,7 @@ def display_frame(
     while alive:
         out_image = q3.get(timeout=None if DEBUG else 1)
         t = time.time() if DEBUG else None
-        out.write(np.array(out_image))
+        # out.write(np.array(out_image))
         current_frame += 1
 
         # Crop the image to remove the border
@@ -361,4 +438,4 @@ def display_frame(
 
 if __name__ == "__main__":
     # screen_to_ascii(file_input="data/input.mp4")
-    screen_to_ascii(low_res=True)
+    screen_to_ascii(low_res=False)
