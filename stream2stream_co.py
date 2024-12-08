@@ -165,6 +165,11 @@ def process_frame(
         h_aligned = int((frame.shape[0] // cell_height) * cell_height)
         w_aligned = int((frame.shape[1] // cell_width) * cell_width)
         frame = frame[:h_aligned, :w_aligned, :]
+        if DEBUG:
+            cv2.imshow("frame1", frame)
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                alive = False
+                break
 
         # Use np slicing to get the partial images
         partial_images = sliding_window_view(
