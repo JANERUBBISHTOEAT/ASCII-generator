@@ -36,5 +36,12 @@ This repository is a fork of the original repository, featuring stream-to-stream
 > After replacing the nested loops with `np.mean`, the typical fps is 17-20
 > (4K, file-to-file)
 
-![after-np](./demo/after-np.png)
+![after-np-split](./demo/after-np-split.png)
+![after-np-stacked](./demo/after-np-stacked.png)
 > The time distribution is now more balanced across each component.
+
+Next steps:
+
+Move time-consuming functions to separate threads to further improve performance.
+
+- [ ] Split `mean` and `text` will increase little delay but improve performance.

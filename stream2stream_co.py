@@ -323,4 +323,4 @@ def display_frame(
 
 if __name__ == "__main__":
     # screen_to_ascii(file_input="data/input.mp4")
-    screen_to_ascii(low_res=False)
+    screen_to_ascii(low_res=True)
