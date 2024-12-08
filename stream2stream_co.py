@@ -29,7 +29,10 @@ def capture_screen(monitor, q, screen_size):
         while alive:
             t = time.time() if DEBUG else None
             screenshot = sct.grab(monitor)
-            frame = cv2.resize(np.array(screenshot)[..., :3], screen_size)
+            frame = np.array(screenshot)
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+            frame = cv2.resize(frame, screen_size, interpolation=cv2.INTER_NEAREST)
+            frame = frame[..., :3]
             print("screenshot", time.time() - t) if DEBUG else None
             try:
                 q.put(frame, timeout=None if DEBUG else 1)
