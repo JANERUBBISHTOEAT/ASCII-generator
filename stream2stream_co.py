@@ -23,7 +23,7 @@ def get_screen_size():
 alive = True
 
 
-def capture_screen(monitor, q, screen_size):
+def capture_screen(monitor, screen_size, q):
     global alive
     with mss.mss() as sct:
         while alive:
@@ -43,7 +43,7 @@ def capture_screen(monitor, q, screen_size):
                 pass
 
 
-def capture_video(file_input, q):
+def capture_video(file_input, screen_size, q):
     global alive
     cap = cv2.VideoCapture(file_input)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -52,6 +52,8 @@ def capture_video(file_input, q):
         t = time.time() if DEBUG else None
         ret, frame = cap.read()
         print("video capture", time.time() - t) if DEBUG else None
+        t = time.time() if DEBUG else None
+        frame = cv2.resize(frame, screen_size, interpolation=cv2.INTER_NEAREST)
         if not ret:
             break
         try:
@@ -107,7 +109,11 @@ def screen_to_ascii(
     threads = [
         threading.Thread(
             target=capture_video if file_input else capture_screen,
-            args=((file_input, q1) if file_input else (monitor, q1, screen_size)),
+            args=(
+                file_input if file_input else monitor,
+                screen_size,
+                q1,
+            ),
         ),
         threading.Thread(
             target=process_frame,
@@ -267,6 +273,7 @@ def display_frame(
     font: ImageFont.FreeTypeFont,
     show_fps: bool = True,
     total_frames: int = None,
+    border_removal: bool = False,
 ):
     global alive
     current_frame = 0
@@ -275,13 +282,15 @@ def display_frame(
         out_image = q3.get(timeout=None if DEBUG else 1)
         t = time.time() if DEBUG else None
         out.write(np.array(out_image))
+        current_frame += 1
 
         # Crop the image to remove the border
-        if bg_color == (255, 255, 255):
-            cropped_image = ImageOps.invert(out_image).getbbox()
-        else:
-            cropped_image = out_image.getbbox()
-        out_image = out_image.crop(cropped_image)
+        if border_removal:
+            if bg_color == (255, 255, 255):
+                cropped_image = ImageOps.invert(out_image).getbbox()
+            else:
+                cropped_image = out_image.getbbox()
+            out_image = out_image.crop(cropped_image)
 
         # Display the FPS if required
         if show_fps:
@@ -304,35 +313,35 @@ def display_frame(
                 font=font,
             )
 
-            # Progress percentage
-            if total_frames:
-                text = f"{(current_frame + 1) / total_frames * 100:.2f}%"
-                percent_font = ImageFont.truetype(
-                    "fonts/DejaVuSansMono-Bold.ttf", size=font.size * 2
-                )
-                text_bbox = draw.textbbox((0, 0), text, font=percent_font)
-                text_size = (
-                    text_bbox[2] - text_bbox[0],
-                    text_bbox[3] - text_bbox[1],
-                )
-                draw.text(
-                    (
-                        (out_image.width - text_size[0]) // 2,
-                        (out_image.height - text_size[1] - 60),
-                    ),
-                    text,
-                    fill=(
-                        255 - bg_color[0],
-                        255 - bg_color[1],
-                        255 - bg_color[2],
-                    ),
-                    font=percent_font,
-                )
+        # Progress percentage
+        if total_frames:
+            text = f"{(current_frame) / total_frames * 100:.2f}%"
+            percent_font = ImageFont.truetype(
+                "fonts/DejaVuSansMono-Bold.ttf", size=font.size * 2
+            )
+            text_bbox = draw.textbbox((0, 0), text, font=percent_font)
+            text_size = (
+                text_bbox[2] - text_bbox[0],
+                text_bbox[3] - text_bbox[1],
+            )
+            draw.text(
+                (
+                    (out_image.width - text_size[0]) // 2,
+                    (out_image.height - text_size[1] - 60),
+                ),
+                text,
+                fill=(
+                    255 - bg_color[0],
+                    255 - bg_color[1],
+                    255 - bg_color[2],
+                ),
+                font=percent_font,
+            )
 
         # Display the progress bar if possible
         out_image = np.array(out_image)
         if total_frames:
-            progress = (current_frame + 1) / total_frames
+            progress = (current_frame) / total_frames
             cv2.rectangle(
                 out_image,
                 (10, out_image.shape[0] - 30),
@@ -340,7 +349,6 @@ def display_frame(
                 (255, 255, 255),
                 -1,
             )
-            current_frame += 1
 
         cv2.imshow("ASCII Stream", out_image)
         if cv2.waitKey(1) & 0xFF == ord("q"):
