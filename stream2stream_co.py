@@ -23,15 +23,16 @@ def get_screen_size():
 alive = True
 
 
-def capture_screen(monitor, q):
+def capture_screen(monitor, q, screen_size):
     global alive
     with mss.mss() as sct:
         while alive:
             t = time.time() if DEBUG else None
             screenshot = sct.grab(monitor)
+            frame = cv2.resize(np.array(screenshot)[..., :3], screen_size)
             print("screenshot", time.time() - t) if DEBUG else None
             try:
-                q.put(np.array(screenshot), timeout=None if DEBUG else 1)
+                q.put(frame, timeout=None if DEBUG else 1)
             except queue.Full:
                 pass
 
@@ -96,7 +97,11 @@ def screen_to_ascii(
     threads = [
         threading.Thread(
             target=capture_video if file_input else capture_screen,
-            args=(file_input, q1) if file_input else (monitor, q1),
+            args=(
+                (file_input, q1)
+                if file_input
+                else (monitor, q1, (screen_width, screen_height))
+            ),
         ),
         threading.Thread(
             target=process_frame,
@@ -150,7 +155,6 @@ def process_frame(
     while alive:
         frame = q1.get(timeout=None if DEBUG else 1)
         t = time.time() if DEBUG else None
-        frame = cv2.resize(frame, screen_size)
 
         screen_width, screen_height = screen_size
 
@@ -175,13 +179,13 @@ def process_frame(
         partial_images = sliding_window_view(
             frame, (int(cell_height), int(cell_width), 3)
         )
-        partial_images = partial_images[:: int(cell_height), :: int(cell_width), 0, 0]
+        partial_images = partial_images[:: int(cell_height), :: int(cell_width)]
 
         # Use np mean to accelerate the process
-        partial_avg_colors = partial_images.mean(axis=(2))
+        partial_avg_colors = partial_images.mean(axis=(2, 3, 4))
         partial_avg_colors = partial_avg_colors.astype(np.int32)
 
-        mean_values = partial_images.mean(axis=(2, 3))
+        mean_values = partial_images.mean(axis=(2, 3, 4, 5))
 
         char_indices = np.clip(
             (mean_values * len(CHAR_LIST) / 255).astype(int), 0, len(CHAR_LIST) - 1
