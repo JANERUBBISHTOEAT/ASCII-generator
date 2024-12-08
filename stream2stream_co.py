@@ -80,7 +80,7 @@ def screen_to_ascii(
     screen_size = get_screen_size()
     screen_width, screen_height = screen_size
     cell_width = screen_width / num_cols
-    cell_height = 1.7 * cell_width
+    cell_height = 1.6 * cell_width
     font_size = int(min(cell_width, cell_height) * shrink * 2)
     font = ImageFont.truetype("fonts/DejaVuSansMono-Bold.ttf", size=font_size)
     num_rows = int(screen_height / cell_height)
